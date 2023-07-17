@@ -1,7 +1,7 @@
 const bcrypt = require('bcrypt');
-const User = require('./user');
 
-let userData = [
+// initial user data (no password hashes yet)
+let data = [
   {
     name: 'First User',
     username: 'user1',
@@ -12,40 +12,32 @@ let userData = [
   }
 ];
 
-async function generatePasswordHash(user, password, saltRounds) {
-  try {
-    const passwordHash = await bcrypt.hash(password, saltRounds);
-    return { ...user, passwordHash}
-  } catch (error) {
-    return { ...user, passwordHash: null }
+// generates a password hash (15 for noticeable delay)
+function generatePasswordHash() {
+  return bcrypt.hash('password', 15);
+}
+
+// re-builds the data array by creating a new array
+// containing users with password hashes
+async function buildData(users) {
+  let newUsers = [];
+  for (let user of users) {
+    newUsers.push({
+      ...user,
+      passwordHash: await generatePasswordHash(),
+    });
   }
+  return newUsers;
 }
 
-function buildUsers(users) {
-  const hashTasks = users.map((user) => generatePasswordHash(user, 'bestPassword', 10));
-  return Promise.all(hashTasks);
-}
-
-/*
-  1. Adds password hashes to each user and overrides previous userData.
-  2. Saves the users to the collection, and stores the results in userData.
-*/
-async function initDb() {
-  await User.deleteMany({});
-  
-  // generate password hashes for users
-  userData = await buildUsers(userData);
-
-  // saves users to db
-  userData = await User.insertMany(userData);
-  
-  // correctly shows the saved results (***)
-  console.log(userData);
+// starts process of building data array
+async function init() {
+  module.exports.data = await buildData(data);
 }
 
 module.exports = {
-  userData,
+  data,
   generatePasswordHash,
-  buildUsers,
-  initDb,
+  buildData,
+  init,
 };
